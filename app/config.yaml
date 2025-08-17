@@ -1,0 +1,6 @@
+camera_index: 0
+save_crops: true
+cooldown_sec: 10   # avoid spamming same violator every frame
+conf_thresholds:
+  helmet_triple: 0.4
+  seatbelt: 0.4
