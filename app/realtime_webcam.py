@@ -17,8 +17,8 @@ def main():
     model1 = YOLO("models/helmet_triple_best.pt")
     model2 = YOLO("models/seatbelt_best.pt")
 
-    #cap = cv2.VideoCapture(cfg["camera_index"])
-    cap = cv2.VideoCapture("traffic_sample.mp4")
+    cap = cv2.VideoCapture(cfg["camera_index"])
+    #cap = cv2.VideoCapture("traffic_sample.mp4")
     assert cap.isOpened(), "Camera not found!"
 
     last_saved = defaultdict(float)

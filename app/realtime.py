@@ -18,7 +18,7 @@ fines = load_yaml("app/fines.yaml")
 model_helmet = YOLO("models/helmet_triple_best.pt")
 model_seatbelt = YOLO("models/seatbelt_best.pt")
 
-video_path = "videos/traffic_sample.mp4"
+video_path = "videos/delhi_traffic.mp4"
 cap = cv2.VideoCapture(video_path)
 
 if not cap.isOpened():
