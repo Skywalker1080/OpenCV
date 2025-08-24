@@ -4,3 +4,7 @@ numpy
 pandas
 pydantic
 pyyaml
+flask
+mysql-connector-python
+flask_sqlalchemy
+
