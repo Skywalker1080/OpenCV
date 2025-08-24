@@ -1,66 +1,127 @@
 import cv2
 import time
+import yaml
+import sys
+import argparse
+import os
 from ultralytics import YOLO
 from collections import defaultdict
+from pathlib import Path
 
-from app.db import init_db, insert_violation
-from app.utils import load_yaml, save_crop
+# Add the project root to Python path for imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Load configs
-cfg = load_yaml("app/config.yaml")
-fines = load_yaml("app/fines.yaml")
+from app.dbsql import init_db, insert_violation
+from app.utils import load_yaml
 
-def main():
+def process_webcam(duration_seconds=30, show_display=True):
+    """Process webcam feed for traffic violations detection"""
+    
+    # Initialize DB
     init_db()
 
-    # Load models
-    model1 = YOLO("models/helmet_triple_best.pt")
-    model2 = YOLO("models/seatbelt_best.pt")
+    # Load config and fines
+    config = load_yaml("app/config.yaml")
+    fines = load_yaml("app/fines.yaml")
 
-    cap = cv2.VideoCapture(cfg["camera_index"])
-    #cap = cv2.VideoCapture("traffic_sample.mp4")
-    assert cap.isOpened(), "Camera not found!"
+    # Load your single YOLO model (helmet + triple seat combined)
+    model = YOLO("models/best.pt")
 
-    last_saved = defaultdict(float)
+    cap = cv2.VideoCapture(config["camera_index"])
+    
+    if not cap.isOpened():
+        print("❌ Error: Could not open webcam.")
+        return False
+
+    last_detection_time = defaultdict(float)
+    cooldown_sec = config["cooldown_sec"]
+    
+    print(f"🎥 Starting webcam detection for {duration_seconds} seconds...")
+    violations_detected = 0
+    start_time = time.time()
 
     while True:
         ret, frame = cap.read()
         if not ret:
+            print("✅ End of webcam stream.")
+            break
+
+        # Check if duration has elapsed
+        if time.time() - start_time > duration_seconds:
+            print(f"⏰ Detection duration ({duration_seconds}s) completed.")
             break
 
         now = time.time()
 
-        for model, tag in [(model1, "helmet_triple"), (model2, "seatbelt")]:
-            results = model.predict(frame, conf=cfg["conf_thresholds"][tag])
-            for r in results:
-                for box in r.boxes:
-                    cls_name = r.names[int(box.cls[0])]
-                    if cls_name not in fines:
-                        continue  # not a violation
+        # Run detection with your model
+        results = model.predict(frame, conf=config["conf_thresholds"]["helmet_triple"])
 
-                    # cooldown check
-                    if now - last_saved[cls_name] < cfg["cooldown_sec"]:
-                        continue
+        detected = False  # Flag to check if any violation is detected
 
-                    xyxy = box.xyxy[0].tolist()
-                    crop_path = save_crop(frame, xyxy, prefix=cls_name)
-                    fine = fines[cls_name]
-                    insert_violation(crop_path, cls_name, fine)
+        for r in results:
+            for box in r.boxes:
+                cls_id = int(box.cls[0])  # since model has only one class
+                cls_name = str(cls_id)    # treat it as "0"
 
-                    last_saved[cls_name] = now
+                if cls_name not in fines:
+                    continue
 
-                    # draw on frame
-                    x1,y1,x2,y2 = map(int, xyxy)
-                    cv2.rectangle(frame, (x1,y1), (x2,y2), (0,0,255), 2)
-                    cv2.putText(frame, f"{cls_name} Rs.{fine}", 
-                                (x1, y1-5), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,0,255), 2)
+                if now - last_detection_time[cls_name] < cooldown_sec:
+                    continue
 
-        cv2.imshow("Traffic Violations", frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+                last_detection_time[cls_name] = now
+
+                # Draw bounding box and label on the frame
+                xyxy = box.xyxy[0].tolist()
+                x1, y1, x2, y2 = map(int, xyxy)
+                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
+                cv2.putText(frame, "No helmet", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
+
+                detected = True
+
+        # If any violation detected, save the full annotated frame
+        if detected:
+            violations_detected += 1
+            img_name = f"webcam_annotated_{int(time.time()*1000)}.jpg"
+            img_path = str(Path("crops") / img_name)
+            Path("crops").mkdir(parents=True, exist_ok=True)
+            cv2.imwrite(img_path, frame)
+
+            # Save violation to DB with full frame path
+            insert_violation(
+                file_path=img_path,
+                violation_type="No helmet",
+                fine=fines["0"]
+            )
+
+        # Only show display if requested (for standalone use)
+        if show_display:
+            cv2.imshow("Detection (Webcam)", frame)
+            if cv2.waitKey(1) & 0xFF == ord("q"):
+                break
 
     cap.release()
-    cv2.destroyAllWindows()
+    if show_display:
+        cv2.destroyAllWindows()
+    
+    print(f"🚨 Total violations detected: {violations_detected}")
+    return True
+
+def main():
+    """Main function to handle command line arguments"""
+    parser = argparse.ArgumentParser(description="Webcam Traffic Violation Detection")
+    parser.add_argument("--duration", type=int, default=30, 
+                       help="Duration in seconds to run detection (default: 30)")
+    parser.add_argument("--no-display", action="store_true", 
+                       help="Run without GUI display (for web integration)")
+    
+    args = parser.parse_args()
+    
+    show_display = not args.no_display
+    success = process_webcam(args.duration, show_display)
+    
+    if not success:
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

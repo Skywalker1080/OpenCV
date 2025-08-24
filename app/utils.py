@@ -6,7 +6,7 @@ import time
 def load_yaml(path):
     return yaml.safe_load(Path(path).read_text())
 
-def save_crop(img, xyxy, out_dir="crops", prefix="violation"):
+def save_crop(img, xyxy, out_dir="crops", prefix="triple-riding"):
     Path(out_dir).mkdir(parents=True, exist_ok=True)
     x1, y1, x2, y2 = map(int, xyxy)
     crop = img[y1:y2, x1:x2]
