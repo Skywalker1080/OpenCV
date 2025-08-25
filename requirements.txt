@@ -7,4 +7,7 @@ pyyaml
 flask
 mysql-connector-python
 flask_sqlalchemy
+google-generativeai
+pillow
+python-dotenv
 

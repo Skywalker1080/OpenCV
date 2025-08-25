@@ -3,3 +3,6 @@
 /runs
 /violations.sqlite
 /scripts
+
+/evaluate_model.py
+/quick_accuracy_test.py

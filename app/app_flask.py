@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory, jsonify
 import os
 import subprocess
 import sys
@@ -6,7 +6,7 @@ import sys
 # Add the project root to Python path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.dbsql import get_all_violations
+from app.dbsql import get_all_violations, update_number_plate, delete_violation
 
 app = Flask(__name__)
 app.secret_key = "your_secret_key"
@@ -129,6 +129,37 @@ def serve_image_file(filepath):
     except Exception as e:
         print(f"Error serving image {filepath}: {e}")
         return "Image not found", 404
+
+@app.route('/update_number_plate', methods=['POST'])
+def update_plate():
+    """Update number plate for a violation"""
+    try:
+        data = request.get_json()
+        violation_id = data.get('violation_id')
+        number_plate = data.get('number_plate', '').strip()
+        
+        update_number_plate(violation_id, number_plate)
+        return jsonify({'status': 'success', 'message': 'Number plate updated successfully'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/delete_violation', methods=['POST'])
+def delete_violation_route():
+    """Delete a violation record"""
+    try:
+        data = request.get_json()
+        violation_id = data.get('violation_id')
+        
+        if not violation_id:
+            return jsonify({'status': 'error', 'message': 'Violation ID is required'}), 400
+        
+        success = delete_violation(violation_id)
+        if success:
+            return jsonify({'status': 'success', 'message': 'Violation deleted successfully'})
+        else:
+            return jsonify({'status': 'error', 'message': 'Violation not found'}), 404
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 if __name__ == "__main__":
     app.run(debug=True)

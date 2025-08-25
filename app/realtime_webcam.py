@@ -13,19 +13,24 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.dbsql import init_db, insert_violation
 from app.utils import load_yaml
+from app.gemini_validator import GeminiValidator
 
 def process_webcam(duration_seconds=30, show_display=True):
     """Process webcam feed for traffic violations detection"""
     
     # Initialize DB
     init_db()
+    
+    # Initialize Gemini validator
+    gemini_validator = GeminiValidator()
 
     # Load config and fines
     config = load_yaml("app/config.yaml")
     fines = load_yaml("app/fines.yaml")
 
-    # Load your single YOLO model (helmet + triple seat combined)
-    model = YOLO("models/best.pt")
+    # Load both YOLO models
+    main_model = YOLO("models/best.pt")  # Original model
+    helmet_model = YOLO("models/helmet_triple_best.pt")  # Helmet and triple riding model
 
     cap = cv2.VideoCapture(config["camera_index"])
     
@@ -53,12 +58,15 @@ def process_webcam(duration_seconds=30, show_display=True):
 
         now = time.time()
 
-        # Run detection with your model
-        results = model.predict(frame, conf=config["conf_thresholds"]["helmet_triple"])
+        # Run detection with both models
+        main_results = main_model.predict(frame, conf=config["conf_thresholds"]["helmet_triple"])
+        helmet_results = helmet_model.predict(frame, conf=config["conf_thresholds"]["helmet_triple"])
 
         detected = False  # Flag to check if any violation is detected
+        violations_in_frame = []  # Store all violations detected in this frame
 
-        for r in results:
+        # Process main model results (original violations)
+        for r in main_results:
             for box in r.boxes:
                 cls_id = int(box.cls[0])  # since model has only one class
                 cls_name = str(cls_id)    # treat it as "0"
@@ -77,9 +85,45 @@ def process_webcam(duration_seconds=30, show_display=True):
                 cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
                 cv2.putText(frame, "No helmet", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
 
+                violations_in_frame.append({
+                    'type': 'No helmet',
+                    'fine': fines[cls_name]
+                })
                 detected = True
 
-        # If any violation detected, save the full annotated frame
+        # Process helmet model results (triple riding and helmetless)
+        for r in helmet_results:
+            for box in r.boxes:
+                cls_id = int(box.cls[0])
+                # Get class names from the model
+                class_names = helmet_model.names
+                cls_name = class_names[cls_id] if cls_id in class_names else str(cls_id)
+                
+                # Only process triple riding violations from this model
+                if cls_name.lower() == 'triple riding':
+                    violation_key = 'triple riding'
+                    
+                    if violation_key not in fines:
+                        continue
+
+                    if now - last_detection_time[violation_key] < cooldown_sec:
+                        continue
+
+                    last_detection_time[violation_key] = now
+
+                    # Draw bounding box and label on the frame
+                    xyxy = box.xyxy[0].tolist()
+                    x1, y1, x2, y2 = map(int, xyxy)
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)  # Blue for triple riding
+                    cv2.putText(frame, "Triple Riding", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 0, 0), 2)
+
+                    violations_in_frame.append({
+                        'type': 'Triple Riding',
+                        'fine': fines[violation_key]
+                    })
+                    detected = True
+
+        # If any violation detected, save the full annotated frame and validate with Gemini
         if detected:
             violations_detected += 1
             img_name = f"webcam_annotated_{int(time.time()*1000)}.jpg"
@@ -87,12 +131,28 @@ def process_webcam(duration_seconds=30, show_display=True):
             Path("crops").mkdir(parents=True, exist_ok=True)
             cv2.imwrite(img_path, frame)
 
-            # Save violation to DB with full frame path
-            insert_violation(
-                file_path=img_path,
-                violation_type="No helmet",
-                fine=fines["0"]
-            )
+            # Validate and save each violation to DB
+            for violation in violations_in_frame:
+                # Validate detection with Gemini
+                validation_result = gemini_validator.validate_detection(
+                    img_path, violation['type']
+                )
+                
+                print(f"Gemini validation for {violation['type']}: {validation_result['status']} (confidence: {validation_result['confidence']:.2f})")
+                print(f"Reason: {validation_result['reason']}")
+                
+                # Only save to DB if validation is correct
+                if validation_result['status'] == 'correct':
+                    insert_violation(
+                        file_path=img_path,
+                        violation_type=violation['type'],
+                        fine=violation['fine']
+                    )
+                    print(f"✅ Violation saved to database: {violation['type']}")
+                else:
+                    print(f"❌ Violation rejected by Gemini: {violation['type']}")
+                    # Optionally, you could save rejected detections to a separate folder
+                    # for manual review later
 
         # Only show display if requested (for standalone use)
         if show_display:
