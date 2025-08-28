@@ -1,5 +1,7 @@
 import mysql.connector
 from datetime import datetime
+import csv
+import io
 
 # Update these with your MySQL credentials
 MYSQL_CONFIG = {
@@ -89,3 +91,37 @@ def delete_violation(violation_id):
     cur.close()
     con.close()
     return rows_affected > 0
+
+def export_violations_to_csv():
+    """Export all violations to CSV format"""
+    con = mysql.connector.connect(**MYSQL_CONFIG)
+    cur = con.cursor(dictionary=True)
+    cur.execute("""
+        SELECT id, ts_utc, violation_type, fine, number_plate
+        FROM violations
+        ORDER BY ts_utc DESC
+    """)
+    violations = cur.fetchall()
+    cur.close()
+    con.close()
+    
+    # Create CSV in memory
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Write header
+    writer.writerow(['ID', 'Date & Time (UTC)', 'Violation Type', 'Fine Amount (₹)', 'Number Plate'])
+    
+    # Write data rows
+    for violation in violations:
+        writer.writerow([
+            violation['id'],
+            violation['ts_utc'],
+            #violation['file_path'],
+            violation['violation_type'],
+            violation['fine'],
+            violation['number_plate'] or ''
+        ])
+    
+    output.seek(0)
+    return output.getvalue()

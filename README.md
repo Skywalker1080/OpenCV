@@ -4,7 +4,7 @@
 - Clone the repository
 - Install dependencies: `pip install -r requirements.txt`
 - Set up MySQL database
-- Run the application: `python -m app.realtime_webcam` or `python -m app.realtime`
+- Run the application: `python -m app.app_flask`
 
 ### Running FastAPI Server
 To run the FastAPI server using uvicorn:
