@@ -35,9 +35,14 @@
                                 <span class="badge bg-light text-dark ms-2">{{ violations|length }} Total Records</span>
                             </h3>
                             {% if violations %}
-                            <a href="{{ url_for('export_csv') }}" class="btn btn-success">
-                                <i class="bi bi-download"></i> Export CSV
-                            </a>
+                            <div class="d-flex gap-2">
+                                <a href="{{ url_for('export_csv') }}" class="btn btn-success">
+                                    <i class="bi bi-download"></i> Export CSV
+                                </a>
+                                <button class="btn btn-danger" onclick="deleteAllViolations()">
+                                    <i class="bi bi-trash"></i> Remove All
+                                </button>
+                            </div>
                             {% endif %}
                         </div>
                     </div>
@@ -53,7 +58,7 @@
                                         <th scope="col">Fine Amount</th>
                                         <th scope="col">Number Plate</th>
                                         <th scope="col">Evidence</th>
-                                        <th scope="col">Actions</th>
+                                        <th scope="col">View</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -103,16 +108,11 @@
                                         </td>
                                         <td>
                                             {% if violation.file_path %}
-                                            <button class="btn btn-sm btn-outline-primary me-1" 
+                                            <button class="btn btn-sm btn-outline-primary" 
                                                     onclick="viewImage('{{ violation.file_path }}', '{{ violation.violation_type }}')">
                                                 <i class="bi bi-eye"></i> View
                                             </button>
                                             {% endif %}
-                                            <button class="btn btn-sm btn-outline-danger" 
-                                                    onclick="deleteViolation({{ violation.id }})"
-                                                    title="Delete this violation">
-                                                <i class="bi bi-trash"></i> Delete
-                                            </button>
                                         </td>
                                     </tr>
                                     {% endfor %}
@@ -257,48 +257,39 @@
             });
         }
 
-        function deleteViolation(violationId) {
-            if (!confirm('Are you sure you want to delete this violation record? This action cannot be undone.')) {
+        function deleteAllViolations() {
+            if (!confirm('Are you sure you want to delete ALL violation records? This action cannot be undone and will remove all data from the database.')) {
                 return;
             }
 
-            fetch('/delete_violation', {
+            // Show loading state
+            const button = event.target;
+            const originalContent = button.innerHTML;
+            button.innerHTML = '<i class="bi bi-hourglass-split"></i> Deleting...';
+            button.disabled = true;
+
+            fetch('/delete_all_violations', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    violation_id: violationId
-                })
+                }
             })
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
-                    // Remove the row from the table
-                    const row = document.getElementById('violation-row-' + violationId);
-                    if (row) {
-                        row.remove();
-                        
-                        // Update the total count badge
-                        const badge = document.querySelector('.badge.bg-light.text-dark');
-                        if (badge) {
-                            const currentCount = parseInt(badge.textContent.split(' ')[0]);
-                            badge.textContent = (currentCount - 1) + ' Total Records';
-                        }
-                    } else {
-                        // Fallback: reload the page
-                        location.reload();
-                    }
-                    
-                    // Show success message
-                    alert('Violation deleted successfully');
+                    // Reload the page to show empty state
+                    location.reload();
                 } else {
                     alert('Error: ' + data.message);
+                    button.innerHTML = originalContent;
+                    button.disabled = false;
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Failed to delete violation');
+                alert('Failed to delete all violations');
+                button.innerHTML = originalContent;
+                button.disabled = false;
             });
         }
     </script>

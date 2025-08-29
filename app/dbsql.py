@@ -92,6 +92,17 @@ def delete_violation(violation_id):
     con.close()
     return rows_affected > 0
 
+def delete_all_violations():
+    """Delete all violations from the database"""
+    con = mysql.connector.connect(**MYSQL_CONFIG)
+    cur = con.cursor()
+    cur.execute("DELETE FROM violations")
+    con.commit()
+    rows_affected = cur.rowcount
+    cur.close()
+    con.close()
+    return rows_affected
+
 def export_violations_to_csv():
     """Export all violations to CSV format"""
     con = mysql.connector.connect(**MYSQL_CONFIG)

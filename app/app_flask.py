@@ -6,7 +6,7 @@ import sys
 # Add the project root to Python path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.dbsql import get_all_violations, update_number_plate, delete_violation, export_violations_to_csv
+from app.dbsql import get_all_violations, update_number_plate, delete_violation, delete_all_violations, export_violations_to_csv
 
 app = Flask(__name__)
 app.secret_key = "your_secret_key"
@@ -158,6 +158,18 @@ def delete_violation_route():
             return jsonify({'status': 'success', 'message': 'Violation deleted successfully'})
         else:
             return jsonify({'status': 'error', 'message': 'Violation not found'}), 404
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/delete_all_violations', methods=['POST'])
+def delete_all_violations_route():
+    """Delete all violation records"""
+    try:
+        rows_deleted = delete_all_violations()
+        return jsonify({
+            'status': 'success', 
+            'message': f'Successfully deleted {rows_deleted} violation records'
+        })
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 

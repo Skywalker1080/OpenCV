@@ -28,9 +28,10 @@ def process_webcam(duration_seconds=30, show_display=True):
     config = load_yaml("app/config.yaml")
     fines = load_yaml("app/fines.yaml")
 
-    # Load both YOLO models
+    # Load all YOLO models
     main_model = YOLO("models/best.pt")  # Original model
     helmet_model = YOLO("models/helmet_triple_best.pt")  # Helmet and triple riding model
+    seatbelt_model = YOLO("models/seatbelt_best.pt")  # Seatbelt model
 
     cap = cv2.VideoCapture(config["camera_index"])
     
@@ -58,9 +59,10 @@ def process_webcam(duration_seconds=30, show_display=True):
 
         now = time.time()
 
-        # Run detection with both models
+        # Run detection with all models
         main_results = main_model.predict(frame, conf=config["conf_thresholds"]["helmet_triple"])
         helmet_results = helmet_model.predict(frame, conf=config["conf_thresholds"]["helmet_triple"])
+        seatbelt_results = seatbelt_model.predict(frame, conf=config["conf_thresholds"]["helmet_triple"])
 
         detected = False  # Flag to check if any violation is detected
         violations_in_frame = []  # Store all violations detected in this frame
@@ -119,6 +121,38 @@ def process_webcam(duration_seconds=30, show_display=True):
 
                     violations_in_frame.append({
                         'type': 'Triple Riding',
+                        'fine': fines[violation_key]
+                    })
+                    detected = True
+
+        # Process seatbelt model results
+        for r in seatbelt_results:
+            for box in r.boxes:
+                cls_id = int(box.cls[0])
+                # Get class names from the model
+                class_names = seatbelt_model.names
+                cls_name = class_names[cls_id] if cls_id in class_names else str(cls_id)
+                
+                # Process No-seat-belt violations from this model
+                if cls_name.lower() == 'no-seat-belt' or cls_name == 'No-seat-belt':
+                    violation_key = 'No-seat-belt'
+                    
+                    if violation_key not in fines:
+                        continue
+
+                    if now - last_detection_time[violation_key] < cooldown_sec:
+                        continue
+
+                    last_detection_time[violation_key] = now
+
+                    # Draw bounding box and label on the frame
+                    xyxy = box.xyxy[0].tolist()
+                    x1, y1, x2, y2 = map(int, xyxy)
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)  # Green for seatbelt
+                    cv2.putText(frame, "No Seatbelt", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+
+                    violations_in_frame.append({
+                        'type': 'No-seat-belt',
                         'fine': fines[violation_key]
                     })
                     detected = True
