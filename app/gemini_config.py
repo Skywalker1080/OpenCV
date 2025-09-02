@@ -1,7 +1,7 @@
 # Gemini API Configuration
 # Add your Gemini API key here or set it as an environment variable GEMINI_API_KEY
 
-GEMINI_API_KEY = "AIzaSyBpxQREQVxOptpN328T6DjZ8eqxUTM9I4E"  # Add your API key here
+GEMINI_API_KEY = ""  # Add your API key here
 
 # Alternative: You can also set the API key as an environment variable:
 # export GEMINI_API_KEY="your_api_key_here"
