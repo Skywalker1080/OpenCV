@@ -1,0 +1,13 @@
+ultralytics
+opencv-python
+numpy
+pandas
+pydantic
+pyyaml
+flask
+mysql-connector-python
+flask_sqlalchemy
+google-generativeai
+pillow
+python-dotenv
+reportlab

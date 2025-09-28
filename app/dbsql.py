@@ -103,6 +103,20 @@ def delete_all_violations():
     con.close()
     return rows_affected
 
+def get_violation_by_id(violation_id):
+    """Retrieve a single violation by its ID"""
+    con = mysql.connector.connect(**MYSQL_CONFIG)
+    cur = con.cursor(dictionary=True)
+    cur.execute("""
+        SELECT id, ts_utc, file_path, violation_type, fine, number_plate
+        FROM violations
+        WHERE id = %s
+    """, (violation_id,))
+    violation = cur.fetchone()
+    cur.close()
+    con.close()
+    return violation
+
 def export_violations_to_csv():
     """Export all violations to CSV format"""
     con = mysql.connector.connect(**MYSQL_CONFIG)

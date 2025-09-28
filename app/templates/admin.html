@@ -108,10 +108,18 @@
                                         </td>
                                         <td>
                                             {% if violation.file_path %}
-                                            <button class="btn btn-sm btn-outline-primary" 
-                                                    onclick="viewImage('{{ violation.file_path }}', '{{ violation.violation_type }}')">
-                                                <i class="bi bi-eye"></i> View
-                                            </button>
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-primary" 
+                                                        onclick="viewImage('{{ violation.file_path }}', '{{ violation.violation_type }}')"
+                                                        title="View Evidence">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                                <a href="{{ url_for('generate_challan', violation_id=violation.id) }}" 
+                                                   class="btn btn-outline-success"
+                                                   title="Download Challan">
+                                                    <i class="bi bi-download"></i>
+                                                </a>
+                                            </div>
                                             {% endif %}
                                         </td>
                                     </tr>

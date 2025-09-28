@@ -29,6 +29,10 @@ To run the FastAPI server using uvicorn:
    - `GET /image/{detection_id}` - Get violation image by ID
    - `GET /predict` - Run traffic violation prediction
 
+### Build using docker
+   - Build the docker image `docker build -t traffic-violation-app .`
+   - Run the container `docker run -p 5000:5000 -p 8000:8000 -v %cd%:/app traffic-violation-app`
+
 **Note:** Ensure MySQL database is running and configured before starting the FastAPI server.
 
 ### Steps to start MySQL
