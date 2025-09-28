@@ -13,7 +13,6 @@ load_dotenv()
 class GeminiValidator:
     def __init__(self, api_key=None):
         """Initialize Gemini validator with API key"""
-        GEMINI_API_KEY = "AIzaSyDBtOGBW5S6kAuA2QA4qckCttRWWZeMBb8"
         self.api_key = api_key or os.getenv('GEMINI_API_KEY', '') or GEMINI_API_KEY
         if self.api_key:
             genai.configure(api_key=self.api_key)

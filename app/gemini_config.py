@@ -1,7 +1,8 @@
 # Gemini API Configuration
 # Add your Gemini API key here or set it as an environment variable GEMINI_API_KEY
+import os
 
-GEMINI_API_KEY = "AIzaSyDBtOGBW5S6kAuA2QA4qckCttRWWZeMBb8"  # Add your API key here
+GEMINI_API_KEY = os.environ["GOOGLE_API_KEY"] = os.getenv("GOOGLE_API_KEY")  # Add your API key here
 
 # Alternative: You can also set the API key as an environment variable:
 # export GEMINI_API_KEY="your_api_key_here"
