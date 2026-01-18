@@ -29,9 +29,26 @@ To run the FastAPI server using uvicorn:
    - `GET /image/{detection_id}` - Get violation image by ID
    - `GET /predict` - Run traffic violation prediction
 
+### Flask Web Application
+The Flask application provides a web interface for interacting with the traffic violation detection system.
+
+- **URL**: `http://localhost:5000`
+
+**Available endpoints:**
+
+- `GET, POST /`: Main page to upload a video for detection or start webcam detection.
+- `GET /admin`: View all traffic violation detections.
+- `POST /update_number_plate`: Update the number plate for a specific violation.
+- `POST /delete_violation`: Delete a specific violation.
+- `POST /delete_all_violations`: Delete all violations.
+- `GET /export_csv`: Export all violations to a CSV file.
+- `GET /generate_challan/<violation_id>`: Generate a PDF challan for a specific violation.
+- `GET /image/<path:filepath>`: Serve image files.
+
 ### Build using docker
    - Build the docker image `docker build -t traffic-violation-app .`
    - Run the container `docker run -p 5000:5000 -p 8000:8000 -v %cd%:/app traffic-violation-app`
+   
 
 **Note:** Ensure MySQL database is running and configured before starting the FastAPI server.
 
